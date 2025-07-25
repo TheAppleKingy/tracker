@@ -1,7 +1,9 @@
+from datetime import datetime
 from typing import Optional
 
 from aiogram import types
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram3_calendar import SimpleCalendar
 
 from api.schemas import TaskViewSchema
 
@@ -84,12 +86,14 @@ def root_list_kb(tasks: list[TaskViewSchema]):
 
 
 def for_task_info_kb(task: TaskViewSchema):
-    additional_buttons = [add_subtask_button(
-        task.id), update_task_button(task.id)]
+    buttons = []
+    if not task.done:
+        buttons += [add_subtask_button(
+            task.id), update_task_button(task.id)]
     if task.task_id:
-        additional_buttons.append(back_button(task.task_id))
-    additional_buttons.append(my_tasks_button())
-    return tasks_kb(task.subtasks, additional_buttons)
+        buttons.append(back_button(task.task_id))
+    buttons.append(my_tasks_button())
+    return tasks_kb(task.subtasks, buttons)
 
 
 def for_task_update_kb(for_task_id: int):
@@ -106,4 +110,48 @@ def for_task_update_kb(for_task_id: int):
         back_button(for_task_id)
     )
     builder.adjust(*[1, 1, 1, 1, 1])
+    return builder.as_markup()
+
+
+async def kalendar_kb(year: Optional[int] = None, month: Optional[int] = None):
+    if not year:
+        year = datetime.now().year
+    if not month:
+        month = datetime.now().month
+    return await SimpleCalendar.start_calendar(year, month)
+
+
+def reminders_time_kb(deadline_hour: int):
+    builder = InlineKeyboardBuilder()
+    buttons = [
+        types.InlineKeyboardButton(
+            text=f"0{i}h:00m" if i <= 9 else f"{i}h:00m",
+            callback_data=f"set_remind_hour_{i}"
+        )
+        for i in range(1, deadline_hour)
+    ]
+
+    for i in range(0, len(buttons), 4):
+        builder.row(*buttons[i:i+4])
+
+    return builder.as_markup()
+
+
+def add_reminder_kb():
+    builder = InlineKeyboardBuilder()
+    builder.add(
+        types.InlineKeyboardButton(
+            text="Add reminder", callback_data='add_reminder'),
+    )
+    return builder.as_markup()
+
+
+def yes_or_no_kb(yes_callback_data: str = '', no_callback_data: str = ''):
+    builder = InlineKeyboardBuilder()
+    builder.add(
+        types.InlineKeyboardButton(
+            text="Yes", callback_data=yes_callback_data),
+        types.InlineKeyboardButton(
+            text="No", callback_data=no_callback_data),
+    )
     return builder.as_markup()
